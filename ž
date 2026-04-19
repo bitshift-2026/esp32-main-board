@@ -29,7 +29,6 @@ int x = xs;
 int y = xs;
 float degree;
 int cas = 0;
-bool compas = true;
 
 void setup() {
     tft.init();
@@ -43,7 +42,7 @@ void setup() {
     
     backgroundS.createSprite(82,240);
     backgroundS.setSwapBytes(true);
-    backgroundS.setPivot(30,70);
+    backgroundS.setPivot(40,70);
     backgroundS.pushImage(0,0,82,240,backs);
 
     pinMode(kSaveButtonPin, INPUT);
@@ -54,11 +53,10 @@ void setup() {
     line.setSwapBytes(true);
     line.pushImage(0,0,160,160,poz11);
     
-    ura.createSprite(100,50);
+    ura.createSprite(100,25);
     ura.setSwapBytes(true);
-    ura.setRotation(1);
     ura.setTextSize(3);
-    ura.setTextColor(0x404a8b, TFT_BLACK);
+    ura.setTextColor(TFT_RED);
 
     gps = &gpsSetup();
 
@@ -232,36 +230,29 @@ void saveCurrentGpsCoords() {
     Serial.printf("Saved coords in RAM: lat=%.8f lon=%.8f\n", saved.latitude, saved.longitude);
 }
 
-bool compass = true;
-
 void loop() {
-   
 
     if (gps == nullptr) {
 		return;
     }
     
     draw(getCycle());
-   background.pushSprite(1,1);
-   
-   int gps_time = (2+gps->data.hour) * 60 + gps->data.minute;
-   //Serial.println(gps_time);
-   if(cas != gps_time){
-       cas = gps_time;
-        backgroundS.fillScreen(TFT_BLACK);
-        backgroundS.pushImage(0,0,82,240,backs);
-        
-        ura.drawString(String(2+gps->data.hour)+":"+String(gps->data.minute), 0, TFT_BLACK);
-        ura.pushRotated(&backgroundS, 90, TFT_BLACK);
-        
-        backgroundS.pushSprite(238, 1);
-        
+    background.pushSprite(1,1);
+
+        ura.drawString(String(123123),0,0);
+        ura.pushToSprite(&backgroundS, 0 , 0, TFT_BLACK);
     
-   }
+    int gps_time = gps->data.hour *60 + gps->data.minute;
+    Serial.println(gps_time);
+    if(cas != gps_time){
+    Serial.println(gps_time);
+        cas= gps_time;
+        ura.drawString(String(gps->data.hour),0,0);
+        ura.pushRotated(&backgroundS, 90, TFT_BLACK);
+    }
 
     //status.pushSprite(1,1);
-    backgroundS.pushSprite(239,0);
-    
+
      d = 360 - compassHeadingDeg(); 
     static unsigned long lastReportMs = 0;
 	unsigned long now = millis();
@@ -275,129 +266,12 @@ void loop() {
 	}
 	lastReportMs = now;
 
-    //Serial.println(gps->data.longitude, 1);
-    //Serial.println(gps->data.latitude, 1);
-    //Serial.println("");
-    
-    double mla =  46.04967;
-    double mlo =  14.46888;
-    
-    gps->data.latitude = mla;
-    gps->data.longitude = mlo;
-    gps->data.hasFix=true;
-
-    double t1la =  46.04923;
-    double t1lo =  14.46890;
-    
-    Serial.println(gps->data.longitude, 8);
-    Serial.println(gps->data.latitude, 8);
-    
-	const double angleDeg = gps->angleToDegrees(t1la, t1lo);
-	const double distanceM = gps->distanceToMeters(t1la, t1lo);
-	const double relativeAngleDeg = gps->relativeAngleToDegrees(t1la, t1lo);    
-    
-    Serial.print("discance: ");
-    Serial.println(distanceM, 8);
-    
-    Serial.print("angleDeg: ");
-    Serial.println(angleDeg, 8);
-
-    Serial.print("relativeAngleDeg: ");
-    Serial.println(relativeAngleDeg, 8);
-    
-    Serial.println("");
-
-    //d = 360.0 - relativeAngleDeg; 
-    /*
-
 	const double currentAngleDeg = static_cast<double>(compassHeadingDeg());
-    /*
-    Serial.print("current angle: ");
-    if (isnan(currentAngleDeg)) {
-        Serial.println("n/a");
-    } else {
-        Serial.println(currentAngleDeg, 1);
-    }
-    */
 
-        Serial.print("satellites: ");
-        Serial.println(gps->data.satellites);
-
-        Serial.print("current lat/lon: ");
-        if (gps->data.hasFix) {
-            Serial.print(gps->data.latitude, 8);
-            Serial.print(", ");
-            Serial.println(gps->data.longitude, 8);
-        } else {
-            Serial.println("no fix");
-        }
-
-    /*    Serial.print("saved lat/lon: ");
-        if (saved.valid) {
-            Serial.print(saved.latitude, 8);
-            Serial.print(", ");
-            Serial.println(saved.longitude, 8);
-        } else {
-            Serial.println("not saved");
-        }
-    */
-    if (!saved.valid || !gps->data.hasFix) {
-        digitalWrite(kBuiltinLedPin, LOW);
-        Serial.println("distance: n/a");
-        Serial.println("cardinal direction: n/a");
-        Serial.println("relative angle: n/a");
-        Serial.println();
-        return;
-    }
-
-    const double angleDeg = gps->angleToDegrees(saved.latitude, saved.longitude);
-    const double distanceM = gps->distanceToMeters(saved.latitude, saved.longitude);
-    const double relativeAngleDeg = gps->relativeAngleToDegrees(saved.latitude, saved.longitude);
-
-    //    Serial.print("distance: ");
-    if (isnan(distanceM)) {
-    //      Serial.println("n/a");
-        digitalWrite(kBuiltinLedPin, LOW);
-    //    Serial.println("cardinal direction: n/a");
-    } else {
-    //       Serial.print(distanceM, 2);
-    //     Serial.println(" m");
-
-        const bool alert = distanceM > kDistanceAlertThresholdM;
-        digitalWrite(kBuiltinLedPin, alert ? HIGH : LOW);
-
-     /*   Serial.print("cardinal direction: ");
-        if (alert && !isnan(angleDeg)) {
-            Serial.println(cardinalFromAngleDeg(angleDeg));
-        } else {
-            Serial.println("within 10m");
-        }
-    */
-    }
-
-        //Serial.print("relative angle: ");
-    if (isnan(relativeAngleDeg)) {
-        Serial.println("n/a");
-        compas = true;
-    } else {
-        Serial.println(relativeAngleDeg, 1);
-        compas = false;
-        d = 360 - relativeAngleDeg;
-    }
-
-	Serial.println();
-    //--------
-    /*
 	Serial.print("current angle: ");
 	if (isnan(currentAngleDeg)) {
 		Serial.println("n/a");
-        compass = true;
 	} else {
-		Serial.println(relativeAngleDeg, 1);
-        compass = false;
-        d = 360 - relativeAngleDeg;
+		Serial.println(currentAngleDeg, 1);
 	}
-
-	Serial.println();
-    */
 }
