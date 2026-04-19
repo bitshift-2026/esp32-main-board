@@ -163,7 +163,38 @@ double GpsService::angleToDegrees(double latitude, double longitude) const {
 	return angleDeg;
 }
 
+double toRadians(double degrees){
+	return degrees * (3.141592 / 180);
+}
+double toDegrees(double radians){
+	return radians * (180 / 3.141592);
+}
+double normalize360(double degrees){
+	while(degrees >=360.0) degrees -= 360.0;
+	while(degrees  <0) degrees += 360.0;
+	return degrees;
+	
+}
 double GpsService::relativeAngleToDegrees(double latitude, double longitude) const {
+	// double phi1 = toRadians(latitude);
+	// double phi2 = toRadians(data.latitude);
+	
+	// double deltaLambda  = toRadians(data.longitude-longitude);
+	
+	// double y = sin(deltaLambda) *cos(phi2);
+	// double x = cos(phi1) * sin(phi2)-sin(phi1)*cos(phi2)*cos(deltaLambda);
+	
+	// double bearingRad = atan2(y, x);
+	// double bearingDeg = normalize360(toDegrees(bearingRad));
+	
+	// const double headingDeg = static_cast<double>(compassHeadingDeg());
+	// double relativeAngle = bearingDeg - headingDeg;
+	
+	// if(relativeAngle > 180) relativeAngle -= 360.0;
+	// if(relativeAngle < -180) relativeAngle += 360.0;
+ 
+	// return relativeAngle;
+
 	const double distanceM = distanceToMeters(latitude, longitude);
 	if (isnan(distanceM) || distanceM < kRelativeAngleMinDistanceM) {
 		return NAN;
