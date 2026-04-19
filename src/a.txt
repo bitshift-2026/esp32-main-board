@@ -27,6 +27,10 @@ void setup() {
     tft.setSwapBytes(true);
     tft.fillScreen(TFT_BLACK);
     
+    status.createSprite(238,238);
+    status.setSwapBytes(true);
+    status.pushImage(0,0,238,238,back);
+    
     background.createSprite(238,238);
     background.setSwapBytes(true);
     background.pushImage(0,0,238,238,back);
@@ -156,7 +160,7 @@ void loop() {
 		return;
     }
     
-    draw(getCycle());
+    //draw(getCycle());
     background.pushSprite(1,1);
     //status.pushSprite(1,1);
     backgroundS.pushSprite(239,0);
