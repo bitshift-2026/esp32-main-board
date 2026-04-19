@@ -14,6 +14,13 @@ TFT_eSprite line = TFT_eSprite(&tft);
 
 static GpsService *gps = nullptr;
 
+static constexpr int kSaveButtonPin = 25;
+static constexpr int kBuiltinLedPin = 2;
+static constexpr unsigned long kDebounceMs = 40;
+static constexpr unsigned long kReportPeriodMs = 300;
+static constexpr int kButtonPressedLevel = HIGH;
+static constexpr double kDistanceAlertThresholdM = 10.0;
+
 int d = 40;
 int ys = 119;
 int xs = 119;
@@ -35,6 +42,9 @@ void setup() {
     backgroundS.setSwapBytes(true);
     backgroundS.pushImage(0,0,82,240,backs);
 
+    pinMode(kSaveButtonPin, INPUT);
+    pinMode(kBuiltinLedPin, OUTPUT);
+    digitalWrite(kBuiltinLedPin, LOW);
 
     line.createSprite(160,160);
     line.setSwapBytes(true);
@@ -150,6 +160,66 @@ void draw(int n){
     }
 }
 
+struct SavedCoords {
+    bool valid;
+    double latitude;
+    double longitude;
+};
+
+static SavedCoords saved = {
+    .valid = false,
+    .latitude = 0.0,
+    .longitude = 0.0,
+};
+
+const char *cardinalFromAngleDeg(double angleDeg) {
+    if (angleDeg >= 45.0 && angleDeg < 135.0) {
+        return "north";
+    }
+    if (angleDeg >= 135.0 && angleDeg < 225.0) {
+        return "west";
+    }
+    if (angleDeg >= 225.0 && angleDeg < 315.0) {
+        return "south";
+    }
+    return "east";
+}
+
+bool checkButtonPressedDebounced() {
+    static int lastReading = HIGH;
+    static int stableState = HIGH;
+    static unsigned long lastChangeMs = 0;
+
+    const int reading = digitalRead(kSaveButtonPin);
+    const unsigned long now = millis();
+
+    if (reading != lastReading) {
+        lastChangeMs = now;
+        lastReading = reading;
+    }
+
+    if ((now - lastChangeMs) >= kDebounceMs && reading != stableState) {
+        stableState = reading;
+        if (stableState == kButtonPressedLevel) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void saveCurrentGpsCoords() {
+    if (gps == nullptr || !gps->data.hasFix) {
+        Serial.println("Save failed: no GPS fix.");
+        return;
+    }
+
+    saved.valid = true;
+    saved.latitude = gps->data.latitude;
+    saved.longitude = gps->data.longitude;
+    Serial.printf("Saved coords in RAM: lat=%.8f lon=%.8f\n", saved.latitude, saved.longitude);
+}
+
 void loop() {
 
     if (gps == nullptr) {
@@ -164,9 +234,84 @@ void loop() {
     static unsigned long lastReportMs = 0;
 	unsigned long now = millis();
 
-
-	if (now - lastReportMs >= 1000) {
-		lastReportMs = now;
-		gps->printStatus();
+    if (checkButtonPressedDebounced()) {
+		saveCurrentGpsCoords();
 	}
+
+	if (now - lastReportMs < kReportPeriodMs) {
+		return;
+	}
+	lastReportMs = now;
+
+	const double currentAngleDeg = static_cast<double>(compassHeadingDeg());
+
+	Serial.print("current angle: ");
+	if (isnan(currentAngleDeg)) {
+		Serial.println("n/a");
+	} else {
+		Serial.println(currentAngleDeg, 1);
+	}
+
+	Serial.print("satellites: ");
+	Serial.println(gps->data.satellites);
+
+	Serial.print("current lat/lon: ");
+	if (gps->data.hasFix) {
+		Serial.print(gps->data.latitude, 8);
+		Serial.print(", ");
+		Serial.println(gps->data.longitude, 8);
+	} else {
+		Serial.println("no fix");
+	}
+
+	Serial.print("saved lat/lon: ");
+	if (saved.valid) {
+		Serial.print(saved.latitude, 8);
+		Serial.print(", ");
+		Serial.println(saved.longitude, 8);
+	} else {
+		Serial.println("not saved");
+	}
+
+	if (!saved.valid || !gps->data.hasFix) {
+		digitalWrite(kBuiltinLedPin, LOW);
+		Serial.println("distance: n/a");
+		Serial.println("cardinal direction: n/a");
+		Serial.println("relative angle: n/a");
+		Serial.println();
+		return;
+	}
+
+	const double angleDeg = gps->angleToDegrees(saved.latitude, saved.longitude);
+	const double distanceM = gps->distanceToMeters(saved.latitude, saved.longitude);
+	const double relativeAngleDeg = gps->relativeAngleToDegrees(saved.latitude, saved.longitude);
+
+	Serial.print("distance: ");
+	if (isnan(distanceM)) {
+		Serial.println("n/a");
+		digitalWrite(kBuiltinLedPin, LOW);
+		Serial.println("cardinal direction: n/a");
+	} else {
+		Serial.print(distanceM, 2);
+		Serial.println(" m");
+
+		const bool alert = distanceM > kDistanceAlertThresholdM;
+		digitalWrite(kBuiltinLedPin, alert ? HIGH : LOW);
+
+		Serial.print("cardinal direction: ");
+		if (alert && !isnan(angleDeg)) {
+			Serial.println(cardinalFromAngleDeg(angleDeg));
+		} else {
+			Serial.println("within 10m");
+		}
+	}
+
+	Serial.print("relative angle: ");
+	if (isnan(relativeAngleDeg)) {
+		Serial.println("n/a");
+	} else {
+		Serial.println(relativeAngleDeg, 1);
+	}
+
+	Serial.println();
 }

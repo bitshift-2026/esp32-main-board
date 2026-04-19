@@ -1,5 +1,8 @@
 #include "gps.h"
 
+#include "compass.h"
+
+#include <cmath>
 #include <TinyGPS++.h>
 
 /* MAIN EXAMPLE:
@@ -35,6 +38,8 @@ static constexpr GpsPinConfig kDefaultPins = {
 	.txPin = 17,
 	.baud = 9600,
 };
+
+static constexpr double kRelativeAngleMinDistanceM = 10.0;
 
 TinyGPSPlus gps;
 HardwareSerial gpsSerial(2);
@@ -112,6 +117,78 @@ void GpsService::printStatus() const {
 			data.second
 		);
 	}
+}
+
+double GpsService::distanceToMeters(double latitude, double longitude) const {
+	if (!data.hasFix) {
+		return NAN;
+	}
+
+	static constexpr double kPi = 3.14159265358979323846;
+	static constexpr double kDegToRad = kPi / 180.0;
+	static constexpr double kMetersPerDegLat = 111320.0;
+
+	const double avgLatRad = (data.latitude + latitude) * 0.5 * kDegToRad;
+	const double dxMeters = (longitude - data.longitude) * kMetersPerDegLat * cos(avgLatRad);
+	const double dyMeters = (latitude - data.latitude) * kMetersPerDegLat;
+
+	return sqrt(dxMeters * dxMeters + dyMeters * dyMeters);
+}
+
+/// @return Angle in degrees from current GPS location to the given latitude/longitude, or NAN if no GPS fix.
+/// The angle is in the range [0, 360),
+/// where 0 means "to the right" (east),
+/// 90 means "up" (north),
+/// 180 means "to the left" (west),
+/// and 270 means "down" (south).
+double GpsService::angleToDegrees(double latitude, double longitude) const {
+	if (!data.hasFix) {
+		return NAN;
+	}
+
+	static constexpr double kPi = 3.14159265358979323846;
+	static constexpr double kDegToRad = kPi / 180.0;
+	static constexpr double kRadToDeg = 180.0 / kPi;
+	static constexpr double kMetersPerDegLat = 111320.0;
+
+	const double avgLatRad = (data.latitude + latitude) * 0.5 * kDegToRad;
+	const double dxMeters = (longitude - data.longitude) * kMetersPerDegLat * cos(avgLatRad);
+	const double dyMeters = (latitude - data.latitude) * kMetersPerDegLat;
+
+	double angleDeg = atan2(dyMeters, dxMeters) * kRadToDeg;
+	if (angleDeg < 0.0) {
+		angleDeg += 360.0;
+	}
+
+	return angleDeg;
+}
+
+double GpsService::relativeAngleToDegrees(double latitude, double longitude) const {
+	const double distanceM = distanceToMeters(latitude, longitude);
+	if (isnan(distanceM) || distanceM < kRelativeAngleMinDistanceM) {
+		return NAN;
+	}
+
+	const double worldAngleDeg = angleToDegrees(latitude, longitude);
+	if (isnan(worldAngleDeg)) {
+		return NAN;
+	}
+
+	const double headingDeg = static_cast<double>(compassHeadingDeg());
+	if (isnan(headingDeg)) {
+		return NAN;
+	}
+
+	// Relative angle: 0째 = target ahead, 90째 = target right, 180째 = target behind, 270째 = target left
+	double relativeDeg = headingDeg - worldAngleDeg;
+	if (relativeDeg < 0.0) {
+		relativeDeg += 360.0;
+	}
+	if (relativeDeg >= 360.0) {
+		relativeDeg -= 360.0;
+	}
+
+	return relativeDeg;
 }
 
 GpsService &gpsSetup() {

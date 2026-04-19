@@ -33,6 +33,9 @@ public:
 	void begin(const GpsPinConfig &pins);
 	void updateFromModule();
 	void printStatus() const;
+	double distanceToMeters(double latitude, double longitude) const;
+	double angleToDegrees(double latitude, double longitude) const;
+	double relativeAngleToDegrees(double latitude, double longitude) const;
 
 private:
 	friend GpsService &gpsSetup();
