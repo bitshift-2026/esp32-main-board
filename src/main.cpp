@@ -220,7 +220,8 @@ void saveCurrentGpsCoords() {
     Serial.printf("Saved coords in RAM: lat=%.8f lon=%.8f\n", saved.latitude, saved.longitude);
 }
 
- bool compass = true;
+bool compass = true;
+
 void loop() {
    
 
@@ -232,7 +233,8 @@ void loop() {
     background.pushSprite(1,1);
     //status.pushSprite(1,1);
     backgroundS.pushSprite(239,0);
-    if (compass) d = 360 - compassHeadingDeg(); 
+    
+     d = 360 - compassHeadingDeg(); 
     static unsigned long lastReportMs = 0;
 	unsigned long now = millis();
 
@@ -244,6 +246,41 @@ void loop() {
 		return;
 	}
 	lastReportMs = now;
+
+    //Serial.println(gps->data.longitude, 1);
+    //Serial.println(gps->data.latitude, 1);
+    //Serial.println("");
+    
+    double mla =  46.04967;
+    double mlo =  14.46888;
+    
+    gps->data.latitude = mla;
+    gps->data.longitude = mlo;
+    gps->data.hasFix=true;
+
+    double t1la =  46.04923;
+    double t1lo =  14.46890;
+    
+    Serial.println(gps->data.longitude, 8);
+    Serial.println(gps->data.latitude, 8);
+    
+	const double angleDeg = gps->angleToDegrees(t1la, t1lo);
+	const double distanceM = gps->distanceToMeters(t1la, t1lo);
+	const double relativeAngleDeg = gps->relativeAngleToDegrees(t1la, t1lo);    
+    
+    Serial.print("discance: ");
+    Serial.println(distanceM, 8);
+    
+    Serial.print("angleDeg: ");
+    Serial.println(angleDeg, 8);
+
+    Serial.print("relativeAngleDeg: ");
+    Serial.println(relativeAngleDeg, 8);
+    
+    Serial.println("");
+
+    //d = 360.0 - relativeAngleDeg; 
+    /*
 
 	const double currentAngleDeg = static_cast<double>(compassHeadingDeg());
 
@@ -319,4 +356,5 @@ void loop() {
 	}
 
 	Serial.println();
+    */
 }
