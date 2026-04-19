@@ -220,7 +220,9 @@ void saveCurrentGpsCoords() {
     Serial.printf("Saved coords in RAM: lat=%.8f lon=%.8f\n", saved.latitude, saved.longitude);
 }
 
+ bool compass = true;
 void loop() {
+   
 
     if (gps == nullptr) {
 		return;
@@ -230,7 +232,7 @@ void loop() {
     background.pushSprite(1,1);
     //status.pushSprite(1,1);
     backgroundS.pushSprite(239,0);
-     d = 360 - compassHeadingDeg(); 
+    if (compass) d = 360 - compassHeadingDeg(); 
     static unsigned long lastReportMs = 0;
 	unsigned long now = millis();
 
@@ -309,8 +311,11 @@ void loop() {
 	Serial.print("relative angle: ");
 	if (isnan(relativeAngleDeg)) {
 		Serial.println("n/a");
+        compass = true;
 	} else {
 		Serial.println(relativeAngleDeg, 1);
+        compass = false;
+        d = 360 - relativeAngleDeg;
 	}
 
 	Serial.println();
